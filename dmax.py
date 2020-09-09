@@ -83,7 +83,7 @@ def get_videos_from_api(showid, token, page):
     return data
 
 
-def main(showid, chosen_season=0, chosen_episode=0, realm=REALMS[0]):
+def main(showid, chosen_season=0, chosen_episode=0, realm=REALMS[0], videoformat="mp4", bwlimit=0):
     if chosen_episode < 0 or chosen_season < 0:
         logger.error("Episode/Season must be > 0.")
         return
@@ -198,10 +198,13 @@ def main(showid, chosen_season=0, chosen_episode=0, realm=REALMS[0]):
             if req.status_code == 200:
                 data = req.json()
                 video_link = data["data"]["attributes"]["streaming"]["hls"]["url"]
+
                 xls.worksheet.write(xls.row, xls.col(), video_link)
-                xls.worksheet.write(xls.row, xls.col(start=True),
-                                    "youtube-dl \"{0}\" -o \"{1}.mp4\"".format(video_link, filename)
-                                    )
+
+                if bwlimit == 0:
+                    xls.worksheet.write(xls.row, xls.col(start=True), "youtube-dl \"{0}\" -o \"{1}.{2}\"".format(video_link, filename, videoformat))
+                else:
+                    xls.worksheet.write(xls.row, xls.col(start=True), "youtube-dl \"{0}\" -r {3}M -o \"{1}.{2}\"".format(video_link, filename, videoformat, bwlimit))
 
                 xls.row += 1
                 break
@@ -253,10 +256,28 @@ if __name__ == "__main__":
             dest="realm",
             help="Realm (site) to download from. Must be one of: {0}".format(", ".join(REALMS))
     )
+    parser.add_argument(
+            "-f",
+            metavar="videoformat",
+            type=str,
+            default="mp4",
+            dest="videoformat",
+            help="Merge to what video format. Defaults to mp4"
+    )
+    parser.add_argument(
+            "-l",
+            metavar="bwlimit",
+            type=int,
+            default=0,
+            dest="bwlimit",
+            help="Bandwidth limit in MByte/s"
+    )
     arguments = parser.parse_args()
     main(
             showid=arguments.showId,
             chosen_season=arguments.season,
             chosen_episode=arguments.episode,
-            realm=arguments.realm
+            realm=arguments.realm,
+            videoformat=arguments.videoformat,
+            bwlimit=arguments.bwlimit
     )
